@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FreshCart Build Problems and Easy Solutions</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5b6475;
+      --line: #d8dee8;
+      --soft: #f5f7fa;
+      --green: #16834a;
+      --red: #b42318;
+      --blue: #175cd3;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #eef2f6;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.55;
+    }
+
+    .page {
+      width: min(920px, calc(100% - 32px));
+      margin: 28px auto;
+      padding: 44px;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    h1,
+    h2,
+    h3 {
+      line-height: 1.2;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      font-size: 21px;
+      margin-top: 34px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--line);
+    }
+
+    h3 {
+      font-size: 17px;
+      margin-top: 22px;
+      color: var(--blue);
+    }
+
+    p {
+      margin: 8px 0 0;
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: var(--soft);
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.95em;
+    }
+
+    .meta {
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .summary {
+      padding: 16px 18px;
+      border-left: 5px solid var(--green);
+      background: #ecfdf3;
+      margin: 22px 0 28px;
+    }
+
+    .problem {
+      border: 1px solid var(--line);
+      margin-top: 18px;
+      padding: 18px;
+      background: #fff;
+      break-inside: avoid;
+    }
+
+    .label {
+      display: inline-block;
+      min-width: 92px;
+      font-weight: 700;
+    }
+
+    .bad {
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .good {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .steps {
+      margin: 10px 0 0;
+      padding-left: 20px;
+    }
+
+    .steps li {
+      margin-top: 6px;
+    }
+
+    .note {
+      padding: 14px 16px;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      margin-top: 14px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .page {
+        width: auto;
+        margin: 0;
+        padding: 24px;
+        border: 0;
+      }
+
+      .problem {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>FreshCart Build Problems and Easy Solutions</h1>
+    <p class="meta">Student-friendly report for the Vercel deployment and Providers.tsx errors.</p>
+
+    <section class="summary">
+      <p><strong>Short result:</strong> the project build now passes. The main deployment problem was caused by using <code>js-cookie</code> in a server-side flow. After that was fixed, TypeScript showed more hidden problems, and each one was solved.</p>
+    </section>
+
+    <h2>How to Save This as PDF Without CLI</h2>
+    <ol class="steps">
+      <li>Open this file in your browser: <code>vercel-build-fixes-report.html</code>.</li>
+      <li>Press <code>Ctrl + P</code>.</li>
+      <li>Choose <strong>Save as PDF</strong> as the printer.</li>
+      <li>Click <strong>Save</strong>.</li>
+    </ol>
+    <p class="note">This is the easiest way because you do not need to run terminal commands. بدون CLI قدر الإمكان.</p>
+
+    <h2>Problems and Easy Fixes</h2>
+
+    <article class="problem">
+      <h3>1. Vercel failed because of js-cookie</h3>
+      <p><span class="label bad">Problem:</span> Vercel showed: <code>Could not find a declaration file for module 'js-cookie'</code>.</p>
+      <p><span class="label">File:</span> <code>src/features/account/server/account.actions.ts</code></p>
+      <p><span class="label">Why:</span> The file used <code>js-cookie</code>, but the app stores the token as an <code>httpOnly</code> cookie. Browser tools like <code>js-cookie</code> cannot read <code>httpOnly</code> cookies.</p>
+      <p><span class="label good">Solution:</span> Make the function a server action and read the cookie using Next.js <code>cookies()</code>.</p>
+      <ol class="steps">
+        <li>Add <code>"use server"</code> at the top of the file.</li>
+        <li>Remove <code>import Cookies from 'js-cookie'</code>.</li>
+        <li>Add <code>import { cookies } from "next/headers"</code>.</li>
+        <li>Read the token with <code>const token = cookieStore.get("token")?.value</code>.</li>
+      </ol>
+      <p class="small">Easy idea: if the cookie is protected on the server, read it on the server.</p>
+    </article>
+
+    <article class="problem">
+      <h3>2. Signup gender validation used old Zod syntax</h3>
+      <p><span class="label bad">Problem:</span> TypeScript rejected <code>errorMap</code> inside <code>z.enum</code>.</p>
+      <p><span class="label">File:</span> <code>src/features/auth/schemas/signup.schema.ts</code></p>
+      <p><span class="label">Why:</span> The project uses Zod 4, but the code used older Zod syntax.</p>
+      <p><span class="label good">Solution:</span> Use the simpler Zod 4 enum message syntax:</p>
+      <p><code>gender: z.enum(["male", "female"], "Please select your gender")</code></p>
+      <p class="small">Easy idea: when a library version changes, some old options may stop working.</p>
+    </article>
+
+    <article class="problem">
+      <h3>3. Cart screen imported something that was not exported</h3>
+      <p><span class="label bad">Problem:</span> The cart screen imported <code>cartSlice</code>, but <code>cartSlice</code> was not exported.</p>
+      <p><span class="label">File:</span> <code>src/features/cart/screens/cart.screen.tsx</code></p>
+      <p><span class="label">Why:</span> TypeScript only allows importing names that the other file exports.</p>
+      <p><span class="label good">Solution:</span> Remove the unused import:</p>
+      <p><code>import { cartSlice } from "../store/cart.slice";</code></p>
+      <p class="small">Easy idea: if you do not use an import, delete it.</p>
+    </article>
+
+    <article class="problem">
+      <h3>4. Cart product type was missing quantity</h3>
+      <p><span class="label bad">Problem:</span> The cart page used <code>item.product.quantity</code>, but the type did not include <code>quantity</code>.</p>
+      <p><span class="label">File:</span> <code>src/features/cart/store/cart.slice.ts</code></p>
+      <p><span class="label">Why:</span> TypeScript must know every property you use.</p>
+      <p><span class="label good">Solution:</span> Add <code>quantity: number</code> to <code>CartProductDetails</code>.</p>
+      <p class="small">Easy idea: if the UI uses a field from the API, add that field to the TypeScript interface.</p>
+    </article>
+
+    <article class="problem">
+      <h3>5. Orders function expected an id but did not need it</h3>
+      <p><span class="label bad">Problem:</span> The function was written as <code>getUserOrder(id: string)</code>, but the page called <code>getUserOrder()</code>.</p>
+      <p><span class="label">File:</span> <code>src/features/orders/server/orders.actions.ts</code></p>
+      <p><span class="label">Why:</span> The function already gets the user id from the token, so the parameter was unnecessary.</p>
+      <p><span class="label good">Solution:</span> Remove the <code>id</code> parameter and return <code>Promise&lt;Order[]&gt;</code>.</p>
+      <p class="small">Easy idea: the function definition and the function call must match.</p>
+    </article>
+
+    <article class="problem">
+      <h3>6. Product type was missing priceAfterDiscount</h3>
+      <p><span class="label bad">Problem:</span> Product cards used <code>priceAfterDiscount</code>, but the shared <code>Product</code> type did not include it.</p>
+      <p><span class="label">File:</span> <code>src/features/products/types/products.types.ts</code></p>
+      <p><span class="label">Why:</span> Some products can have discounts, so this field may exist in the API data.</p>
+      <p><span class="label good">Solution:</span> Add an optional field:</p>
+      <p><code>priceAfterDiscount?: number</code></p>
+      <p class="small">Easy idea: use <code>?</code> when a field may or may not exist.</p>
+    </article>
+
+    <article class="problem">
+      <h3>7. Product details had a duplicate local Product type</h3>
+      <p><span class="label bad">Problem:</span> <code>ProductInfo.tsx</code> had its own product type, and one property was typed with a spelling mistake.</p>
+      <p><span class="label">File:</span> <code>src/features/products/components/ProductDetails/ProductInfo.tsx</code></p>
+      <p><span class="label">Why:</span> Copying the same type in many places makes mistakes easy.</p>
+      <p><span class="label good">Solution:</span> Delete the local type and import the shared <code>Product</code> type.</p>
+      <p><code>import type { Product } from "../../types/products.types";</code></p>
+      <p class="small">Easy idea: use one shared type instead of repeating the same shape in many files.</p>
+    </article>
+
+    <article class="problem">
+      <h3>8. Providers.tsx used any and ignored preloadedState</h3>
+      <p><span class="label bad">Problem:</span> <code>preloadedState?: any</code> caused an ESLint error, and <code>preloadedState</code> was passed but not used.</p>
+      <p><span class="label">File:</span> <code>src/components/providers/Providers.tsx</code></p>
+      <p><span class="label">Why:</span> <code>any</code> removes TypeScript safety. Also, the server sent auth/cart data to Redux, but Redux ignored it.</p>
+      <p><span class="label good">Solution:</span> Type it as <code>Partial&lt;RootState&gt;</code> and use it when creating the Redux store.</p>
+      <ol class="steps">
+        <li>Create the store with <code>makeStore(preloadedState)</code>.</li>
+        <li>Use <code>useState(() =&gt; makeStore(preloadedState))</code> so the store is created once.</li>
+        <li>Pass the created store to <code>&lt;Provider store={store}&gt;</code>.</li>
+      </ol>
+      <p class="small">Easy idea: if a value is passed to a component, either use it or remove it.</p>
+    </article>
+
+    <article class="problem">
+      <h3>9. Redux store needed to support initial server data</h3>
+      <p><span class="label bad">Problem:</span> The store was a fixed exported store and could not easily receive initial data from <code>layout.tsx</code>.</p>
+      <p><span class="label">File:</span> <code>src/features/auth/store/store.ts</code></p>
+      <p><span class="label">Why:</span> Next.js can load auth/cart data on the server first, then send it to the client. Redux needs a way to start with that data.</p>
+      <p><span class="label good">Solution:</span> Add a <code>makeStore(preloadedState)</code> function and use <code>combineReducers</code>.</p>
+      <p class="small">Easy idea: server data should become the starting state for the client store.</p>
+    </article>
+
+    <h2>Final Check</h2>
+    <p>The project production build passed after the fixes.</p>
+    <p>The remaining warning about multiple lockfiles is not the same as an error. It means there is another <code>package-lock.json</code> outside the project folder on the local computer.</p>
+
+    <h2>Simple Rule for Future Errors</h2>
+    <ol class="steps">
+      <li>Read the first error message carefully.</li>
+      <li>Open the file and line number from the error.</li>
+      <li>Ask: is this a missing type, wrong import, wrong function call, or old library syntax?</li>
+      <li>Fix one error at a time.</li>
+      <li>Build again and repeat until no errors remain.</li>
+    </ol>
+  </main>
+</body>
+</html>
